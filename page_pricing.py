@@ -100,6 +100,9 @@ def render():
                             period['date_from'] <= p['date_to'] and p['date_from'] <= period['date_to']]
                 if overlaps:
                     st.caption('Překryv s jiným obdobím · cenu určuje kratší období.')
+                if not period['id']:
+                    st.caption('Období nemá ID. Pro úpravy jej doplňte ve společné tabulce.')
+                    continue
                 with st.expander('Upravit období'):
                     editor(period)
                     if st.button('Odstranit období', key=f'delprice_{i}', type='tertiary', disabled=not period['id']):

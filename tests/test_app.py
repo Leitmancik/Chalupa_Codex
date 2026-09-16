@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 os.environ['CHALUPA_DEMO'] = '1'
-from domain import conflict, half_states, quote, today, parse_money, StorageError
+from domain import conflict, half_states, quote, today, parse_money, StorageError, validate_reservation
 import storage
 
 class DomainTests(unittest.TestCase):
@@ -30,6 +30,12 @@ class DomainTests(unittest.TestCase):
             self.assertEqual(parse_money(text), value)
         for value in ('nan', '-100', 'abc'):
             with self.assertRaises(StorageError): parse_money(value)
+
+    def test_validation(self):
+        start = today() + timedelta(days=1)
+        for first, last, email, end in [('', 'Host', 'test@example.com', start+timedelta(days=1)), ('Test', 'Host', 'bad', start+timedelta(days=1)), ('Test', 'Host', 'test@example.com', start)]:
+            with self.assertRaises(StorageError):
+                validate_reservation(first, last, email, start, end)
 
     def test_invalid_rows_fail_closed(self):
         with self.assertRaises(StorageError):
@@ -81,6 +87,14 @@ class StorageTests(unittest.TestCase):
         read.assert_called_once_with('Rezervace', storage.RES_HEADER)
         prices.assert_called_once_with(force=True)
         self.assertEqual(sheet.append_row.call_args.kwargs['value_input_option'], 'RAW')
+
+    def test_missing_price_id_renders_without_duplicate_forms(self):
+        from streamlit.testing.v1 import AppTest
+        import json
+        with storage._db() as db:
+            db.execute('INSERT INTO records VALUES (?,?,?)', ('prices', 'localrow', json.dumps(['2030-01-01', '2030-01-05', 1000, 'Bez ID', ''])))
+        app = AppTest.from_string('import page_pricing\npage_pricing.render()', default_timeout=30).run()
+        self.assertFalse(app.exception)
 
     def test_ui_guest_and_admin(self):
         from streamlit.testing.v1 import AppTest

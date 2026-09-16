@@ -35,7 +35,7 @@ def export_frame(rows):
     return pd.DataFrame([
         [safe_cell(r['first_name']), safe_cell(r['last_name']), safe_cell(r['email']),
          r['date_from'].isoformat(), r['date_to'].isoformat(),
-         (r['date_to']-r['date_from']).days, STATUS[r['status']], r['price'], r['id']]
+         (r['date_to']-r['date_from']).days, STATUS[r['status']], r['price'], safe_cell(r['id'])]
         for r in rows], columns=columns)
 
 
