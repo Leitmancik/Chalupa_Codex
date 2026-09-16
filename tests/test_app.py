@@ -115,6 +115,22 @@ class StorageTests(unittest.TestCase):
         app = AppTest.from_string('import page_pricing\npage_pricing.render()', default_timeout=30).run()
         self.assertFalse(app.exception)
 
+    def test_multiple_status_filter(self):
+        from streamlit.testing.v1 import AppTest
+        start = today() + timedelta(days=10)
+        for index, status in enumerate(('pending', 'confirmed', 'paid')):
+            arrival = start + timedelta(days=index * 3)
+            rid = f'filter-{index}'
+            storage.add_reservation('Test', 'Host', 'test@example.com',
+                                    arrival, arrival + timedelta(days=1), None, rid)
+            storage.set_status(rid, status)
+        app = AppTest.from_string('import page_reservations\npage_reservations.render()', default_timeout=30).run()
+        for selection, count in [([], 3), (['Čeká na potvrzení', 'Zaplaceno'], 2),
+                                 (['Potvrzeno - čeká na zaplacení'], 1), ([], 3)]:
+            app.multiselect[0].set_value(selection).run()
+            self.assertFalse(app.exception)
+            self.assertEqual(len([s for s in app.selectbox if s.label == 'Stav rezervace']), count)
+
     def test_ui_guest_and_admin(self):
         from streamlit.testing.v1 import AppTest
         storage.save_price(None, None, None, 2000, 'Základ')
@@ -144,7 +160,7 @@ class StorageTests(unittest.TestCase):
             self.assertEqual(current['status'], state)
             self.assertEqual(current['created_at'], original['created_at'])
             self.assertEqual(current['price'], original['price'])
-        next(s for s in admin.selectbox if s.label == 'Stav').select('Zaplaceno').run()
+        admin.multiselect[0].set_value(['Zaplaceno']).run()
         self.assertFalse(admin.exception)
         self.assertEqual(len([s for s in admin.selectbox if s.label == 'Stav rezervace']), 1)
         calendar = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'streamlit_app.py'), default_timeout=30).run()

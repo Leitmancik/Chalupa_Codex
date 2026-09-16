@@ -31,7 +31,7 @@ def render():
 
 def booking(reservations, prices):
     st.html('<div class="section-label">Váš pobyt</div>')
-    st.markdown('### Naplánujte si volno')
+    st.markdown('### Naplánujte si dovolenou')
     st.session_state.setdefault('arrival', None)
     st.session_state.setdefault('departure', None)
     fields = st.columns(2)

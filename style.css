@@ -37,7 +37,7 @@ h2{font-size:1.55rem!important}h3{font-size:1.15rem!important;letter-spacing:-.0
 .st-key-calendar [class*="-today"] button p{text-decoration:underline;text-underline-offset:4px}
 .weekday{text-align:center;color:#899084;font-size:10px;letter-spacing:.08em;font-weight:600;padding:8px 0}
 .calendar-empty{height:42px}
-.legend{display:flex;gap:17px;flex-wrap:wrap;color:#74806e;font-size:11px;margin:14px 0 5px}.legend span{display:flex;gap:6px;align-items:center}.dot{width:10px;height:10px;border-radius:3px;display:inline-block;border:1px solid #e2e8dc}.dot.free{background:#f7f8f1}.dot.confirmed{background:#d4dfcc}.dot.pending{background:#f4e4c4}.dot.change{background:linear-gradient(135deg,#d4dfcc 50%,#f7f8f1 50%)}
+.legend{display:flex;gap:17px;flex-wrap:wrap;color:#74806e;font-size:11px;margin:14px 0 5px}.legend span{display:flex;gap:6px;align-items:center}.dot{width:10px;height:10px;border-radius:3px;display:inline-block;border:1px solid #e2e8dc}.dot.free{background:#f7f8f1}.dot.confirmed,.dot.paid{background:#f5b5b5}.dot.pending{background:#f7ce91}.dot.change{background:linear-gradient(135deg,#f5b5b5 50%,#f7f8f1 50%)}
 .booking-price{font-family:'Manrope',sans-serif;font-size:27px;font-weight:700;letter-spacing:-.04em;margin:0}.booking-price small{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:400;letter-spacing:0;color:#78806e}
 .price-line{display:flex;justify-content:space-between;font-size:14px;padding:8px 0;color:#737e6c}.price-total{border-top:1px solid var(--line);margin-top:8px;padding-top:15px;font-weight:700;font-size:19px;color:var(--forest)}
 .booking-empty{padding:22px 8px;text-align:center;border:1px dashed #dbe2d2;border-radius:13px;font-size:13px;color:#8a9480;line-height:1.8}

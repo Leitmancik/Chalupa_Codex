@@ -88,3 +88,9 @@ nové názvy stavů zatím nezná; její úprava není součástí této změny.
 U chybějících starých sekund se zobrazuje upozornění. Automatické platby jsou
 odložené na později stejně jako e-maily. Tato aktualizace nahrazuje dřívější
 popis dvou stavů; aktuální implementace je v repozitáři.
+
+## Další úpravy kalendáře a filtrování (16. 9. 2026)
+Kalendář používá oranžovou pro čekající rezervace a stejnou červenou pro
+potvrzené čekající na zaplacení i zaplacené. Legenda uvádí všechny tři stavy.
+Nadpis rezervačního formuláře zní „Naplánujte si dovolenou“.
+Filtr Stav ve správě rezervací je vícenásobný; bez výběru se zobrazí všechny stavy.

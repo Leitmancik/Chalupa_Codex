@@ -6,8 +6,8 @@ import streamlit as st
 from domain import (MONTHS, half_states, shift_month, today, conflict,
                     date_label, price_for_night, money)
 
-COLORS = {'free': '#f7f8f1', 'confirmed': '#d4dfcc', 'paid': '#d4dfcc', 'pending': '#f4e4c4'}
-LABELS = {'free': 'volno', 'confirmed': 'obsazeno', 'paid': 'obsazeno', 'pending': 'čeká na potvrzení'}
+COLORS = {'free': '#f7f8f1', 'confirmed': '#f5b5b5', 'paid': '#f5b5b5', 'pending': '#f7ce91'}
+LABELS = {'free': 'volno', 'confirmed': 'potvrzeno – čeká na zaplacení', 'paid': 'zaplaceno', 'pending': 'čeká na potvrzení'}
 
 
 def choose(day):
@@ -55,8 +55,9 @@ def render(reservations, prices):
             with col:
                 month(shift_month(st.session_state['month'], offset), reservations, prices)
         st.html('<div class="legend"><span><i class="dot free"></i>Volno</span>'
-                '<span><i class="dot confirmed"></i>Obsazeno</span>'
                 '<span><i class="dot pending"></i>Čeká na potvrzení</span>'
+                '<span><i class="dot confirmed"></i>Potvrzeno – čeká na zaplacení</span>'
+                '<span><i class="dot paid"></i>Zaplaceno</span>'
                 '<span><i class="dot change"></i>Příjezd / odjezd</span></div>')
         st.caption('Odjezd i nový příjezd mohou být ve stejný den. Čekající rezervace termín také blokují.')
         st.button('Zrušit výběr', type='tertiary', on_click=clear, disabled=start is None)

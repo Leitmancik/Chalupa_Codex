@@ -78,13 +78,16 @@ def render():
             f'<div class="metric-card"><small>Čeká na potvrzení</small><strong>{pending}</strong><span>žádosti k vyřízení</span></div>'
             f'<div class="metric-card"><small>Nadcházející a probíhající</small><strong>{coming}</strong><span>pobyty v kalendáři</span></div>'
             f'<div class="metric-card"><small>Hodnota potvrzených pobytů</small><strong>{money(revenue)}</strong><span>všechny potvrzené · {missing} bez uložené ceny</span></div></div>')
-    filters = st.columns([2, 1, 1])
+    filters = st.columns([2, 2, 1])
     search = filters[0].text_input('Hledat hosta', placeholder='Jméno, e-mail nebo kód rezervace')
-    status = filters[1].selectbox('Stav', ['Všechny stavy', *STATUS.values()])
+    statuses = filters[1].multiselect(
+        'Stav', list(STATUS.values()), placeholder='Všechny stavy',
+        help='Můžete vybrat více stavů. Prázdný výběr zobrazí všechny stavy.',
+    )
     period = filters[2].selectbox('Období', ['Nadcházející a probíhající', 'Všechny pobyty', 'Minulé pobyty'])
     filtered = [r for r in rows if (
         (not search or search.casefold() in f"{r['first_name']} {r['last_name']} {r['email']} {r['id']}".casefold())
-        and (status == 'Všechny stavy' or STATUS[r['status']] == status)
+        and (not statuses or STATUS[r['status']] in statuses)
         and (period == 'Všechny pobyty' or (r['date_to'] > today()) == (period == 'Nadcházející a probíhající')))]
     st.caption('Časy vytvoření jsou uvedené v časovém pásmu Europe/Prague. Stav platby zatím měníte ručně.')
     st.caption(f'Zobrazeno {len(filtered)} z {len(rows)} rezervací · Souhrny nahoře zahrnují všechny záznamy.')
