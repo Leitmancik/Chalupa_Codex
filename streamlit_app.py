@@ -1,0 +1,25 @@
+"""Samostatná aplikace pro hosty a majitele jedné chalupy."""
+import streamlit as st
+import storage
+import ui
+import page_calendar
+import page_reservations
+import page_pricing
+
+st.set_page_config(page_title='Chalupa · Rezervace', page_icon='🌿', layout='wide',
+                   initial_sidebar_state='collapsed')
+ui.style()
+if st.session_state.pop('_reset_booking', False):
+    for key in ('arrival', 'departure', '_request'):
+        st.session_state.pop(key, None)
+
+page = st.navigation([
+    st.Page(page_calendar.render, title='Kalendář a pobyt', icon=':material/calendar_month:', default=True, url_path='kalendar'),
+    st.Page(page_reservations.render, title='Správa rezervací', icon=':material/event_available:', url_path='rezervace'),
+    st.Page(page_pricing.render, title='Cenotvorba', icon=':material/payments:', url_path='cenotvorba'),
+], position='top')
+st.html('<div class="brand"><div class="brand-symbol">⌂</div><div>'
+        '<div class="brand-name">CHALUPA</div><small>Pro chvíle, na kterých záleží.</small></div></div>')
+if not storage.connected():
+    st.info('Ukázkový režim · Používáte samostatná místní data. Změny se nezapisují do společné tabulky.')
+page.run()
