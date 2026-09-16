@@ -59,16 +59,18 @@ def _errors():
                            'připojení a sdílení tabulky a zkuste to znovu.') from None
 
 
-def _sheet(name, header):
+def _sheet(name, header, include_header=False):
     sheet = _document().worksheet(name)
     rows = sheet.get_all_values()
     if not rows or rows[0][:len(header)] != header:
         raise StorageError(f'List {name} nemá očekávané sloupce. '
                            'Strukturu tabulky aplikace automaticky nemění.')
+    if include_header:
+        return sheet, rows[1:], rows[0]
     return sheet, rows[1:]
 
 
-def _decode_res(rows):
+def _decode_res(rows, cleaner_index=None):
     result = []
     ids = set()
     for row in rows:
@@ -86,7 +88,10 @@ def _decode_res(rows):
         result.append(dict(first_name=v[0], last_name=v[1], email=v[2],
                            date_from=start, date_to=end,
                            status='confirmed' if v[5] == STATUS['confirmed'] else 'pending',
-                           id=rid, created_at=v[7], price=parse_money(v[8])))
+                           id=rid, created_at=v[7], price=parse_money(v[8]),
+                           cleaner_email=(str(v[cleaner_index]).strip()
+                               if cleaner_index is not None and len(v) > cleaner_index
+                               else '')))
     return sorted(result, key=lambda r: r['date_from'])
 
 
@@ -129,12 +134,16 @@ def _local_rows(kind):
 
 def _read(kind):
     with _errors():
+        cleaner_index = 9
         if connected():
-            name, header = ('Rezervace', RES_HEADER) if kind == 'res' else ('Cenotvorba', PRICE_HEADER)
-            _, rows = _sheet(name, header)
+            if kind == 'res':
+                _, rows, cleaner_index = _reservation_assignment_sheet()
+            else:
+                _, rows = _sheet('Cenotvorba', PRICE_HEADER)
         else:
             rows = _local_rows(kind)
-        return _decode_res(rows) if kind == 'res' else _decode_prices(rows)
+        return (_decode_res(rows, cleaner_index) if kind == 'res'
+                else _decode_prices(rows))
 
 
 def _load(kind, force=False):
@@ -156,7 +165,7 @@ def load_prices(force=False):
 
 
 def refresh():
-    for key in ('_data_res', '_data_prices'):
+    for key in ('_data_res', '_data_prices', '_data_cleaners'):
         st.session_state.pop(key, None)
 
 
@@ -278,3 +287,183 @@ def save_price(rid, start, end, price, label):
 
 def delete_price(rid):
     _mutate('prices', rid, delete=True)
+
+
+# Nový list je samostatný; strukturu rezervací ani ceníku neměníme.
+CLEANING_SHEET = 'Úklid'
+CLEANING_HEADER = ['Jméno', 'E-mail']
+
+
+def _cleaning_sheet(create=False):
+    document = _document()
+    try:
+        sheet = document.worksheet(CLEANING_SHEET)
+    except gspread.exceptions.WorksheetNotFound:
+        if not create:
+            return None, []
+        try:
+            sheet = document.add_worksheet(
+                title=CLEANING_SHEET, rows=100, cols=len(CLEANING_HEADER),
+            )
+        except gspread.exceptions.APIError:
+            # List mohl mezitím vzniknout v jiné relaci.
+            sheet = document.worksheet(CLEANING_SHEET)
+    rows = sheet.get_all_values()
+    if not any(str(cell).strip() for row in rows for cell in row):
+        rows = []
+    if not rows and create:
+        sheet.update(range_name='A1:B1', values=[CLEANING_HEADER],
+                     value_input_option='RAW')
+        rows = [CLEANING_HEADER]
+    if not rows:
+        return sheet, []
+    if rows[0][:2] != CLEANING_HEADER:
+        raise StorageError(
+            'List Úklid nemá očekávané sloupce Jméno a E-mail. '
+            'Existující obsah nebyl změněn.'
+        )
+    return sheet, rows[1:]
+
+
+def ensure_cleaning_sheet():
+    """Při nasazení nebo prvním přidání založí pouze nový list Úklid."""
+    if connected():
+        with _lock(), _errors():
+            _cleaning_sheet(create=True)
+
+
+def _decode_cleaners(rows):
+    people = []
+    for row in rows:
+        if not any(str(value).strip() for value in row):
+            continue
+        values = list(row) + [''] * max(0, 2 - len(row))
+        people.append({'name': str(values[0]).strip(),
+                       'email': str(values[1]).strip()})
+    return sorted(people, key=lambda person: person['name'].casefold())
+
+
+def load_cleaners(force=False):
+    cached = st.session_state.get('_data_cleaners')
+    if not force and cached and time.monotonic() - cached[0] < 30:
+        return cached[1]
+    with _errors():
+        if connected():
+            _, rows = _cleaning_sheet()
+        else:
+            rows = _local_rows('cleaners')
+        people = _decode_cleaners(rows)
+    st.session_state['_data_cleaners'] = (time.monotonic(), people)
+    return people
+
+
+def refresh_cleaners():
+    st.session_state.pop('_data_cleaners', None)
+
+
+def add_cleaner(name, email):
+    """Přidá kontakt, stejný e-mail nesmí být v týmu dvakrát."""
+    import re
+    name, email = name.strip(), email.strip()
+    if not name or len(name) > 100:
+        raise StorageError('Zadejte jméno o délce 1 až 100 znaků.')
+    if len(email) > 254 or not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email):
+        raise StorageError('Zadejte prosím platnou e-mailovou adresu.')
+    with _lock(), _errors():
+        if connected():
+            sheet, rows = _cleaning_sheet(create=True)
+            people = _decode_cleaners(rows)
+            if any(p['email'].casefold() == email.casefold() for p in people):
+                raise StorageError('Kontakt s tímto e-mailem už v týmu je.')
+            try:
+                sheet.append_row([name, email], value_input_option='RAW')
+            except Exception:
+                # Po ztracené odpovědi nejprve ověříme skutečný zápis.
+                people = load_cleaners(force=True)
+                if not any(p['email'].casefold() == email.casefold()
+                           and p['name'] == name for p in people):
+                    raise StorageError(
+                        'Uložení kontaktu nelze ověřit. Obnovte seznam '
+                        'a před dalším pokusem zkontrolujte, zda už je v týmu.'
+                    ) from None
+        else:
+            with _db() as db:
+                db.execute('BEGIN IMMEDIATE')
+                rows = [json.loads(r[0]) for r in db.execute(
+                    "SELECT payload FROM records WHERE kind='cleaners'")]
+                if any(p['email'].casefold() == email.casefold()
+                       for p in _decode_cleaners(rows)):
+                    raise StorageError('Kontakt s tímto e-mailem už v týmu je.')
+                db.execute('INSERT INTO records VALUES (?,?,?)',
+                           ('cleaners', uuid.uuid4().hex,
+                            json.dumps([name, email])))
+    refresh_cleaners()
+
+
+CLEANER_COLUMN = 'Úklid - e-mail'
+
+
+def _reservation_assignment_sheet(create=False):
+    sheet, rows, header = _sheet('Rezervace', RES_HEADER, include_header=True)
+    if header.count(CLEANER_COLUMN) > 1:
+        raise StorageError('Sloupec Úklid - e-mail je v tabulce vícekrát.')
+    if CLEANER_COLUMN in header:
+        return sheet, rows, header.index(CLEANER_COLUMN)
+    if not create:
+        return sheet, rows, None
+    # Nepřesouváme původní sloupce ani nepřepíšeme data bez hlavičky.
+    index = max([len(header)] + [len(row) for row in rows])
+    if index >= sheet.col_count:
+        sheet.add_cols(index + 1 - sheet.col_count)
+    sheet.update(range_name=gspread.utils.rowcol_to_a1(1, index + 1),
+                 values=[[CLEANER_COLUMN]], value_input_option='RAW')
+    return sheet, rows, index
+
+
+def ensure_cleaning_storage():
+    """Připraví nový seznam a sloupec pro přiřazení bez změny dat pobytů."""
+    if connected():
+        with _lock(), _errors():
+            _cleaning_sheet(create=True)
+            _reservation_assignment_sheet(create=True)
+
+
+def assign_cleaner(reservation_id, email):
+    """Přiřadí jeden kontakt k úklidu po pobytu; prázdný e-mail jej zruší."""
+    if not reservation_id:
+        raise StorageError('Rezervace nemá ID. Doplňte jej nejprve v tabulce.')
+    email = (email or '').strip()
+    with _lock(), _errors():
+        if email:
+            person = next((p for p in load_cleaners(force=True)
+                           if p['email'].casefold() == email.casefold()), None)
+            if person is None:
+                raise StorageError('Kontakt už není v týmu. Obnovte seznam.')
+            email = person['email']
+        if connected():
+            sheet, rows, index = _reservation_assignment_sheet(create=True)
+            matches = [i + 2 for i, row in enumerate(rows)
+                       if len(row) > 6 and str(row[6]).strip() == reservation_id]
+            if len(matches) != 1:
+                raise StorageError(
+                    'Rezervace nebyla jednoznačně nalezena. Obnovte data.'
+                )
+            sheet.update(
+                range_name=gspread.utils.rowcol_to_a1(matches[0], index + 1),
+                values=[[email]], value_input_option='RAW',
+            )
+        else:
+            with _db() as db:
+                db.execute('BEGIN IMMEDIATE')
+                row = db.execute(
+                    'SELECT payload FROM records WHERE kind=? AND id=?',
+                    ('res', reservation_id),
+                ).fetchone()
+                if row is None:
+                    raise StorageError('Rezervace už neexistuje. Obnovte data.')
+                values = json.loads(row[0])
+                values += [''] * max(0, 10 - len(values))
+                values[9] = email
+                db.execute('UPDATE records SET payload=? WHERE id=?',
+                           (json.dumps(values), reservation_id))
+    refresh()

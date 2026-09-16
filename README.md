@@ -10,6 +10,8 @@ společná Google tabulka s původní aplikací `Reservation_project`.
 - Správa rezervací, filtrování, potvrzování a mazání s potvrzovacím dialogem.
 - Export vyfiltrovaných rezervací do CSV a Excelu.
 - Základní cena a úpravy sezónních cenových období.
+- Úklidový tým: přidání a seznam osob nebo firem (jméno, e-mail).
+- Ruční přiřazení úklidu ke dni odjezdu u každé rezervace, změna i zrušení.
 - České rozhraní, mobilní rozložení, samostatný místní režim pro testování.
 
 Přihlášení se podle zadání řeší až po doladění produktu. Stránky správy jsou
@@ -29,6 +31,8 @@ streamlit run streamlit_app.py
 Konfigurace společné tabulky je v `.streamlit/secrets.toml`. Vzor je vedle ní
 v souboru `secrets.toml.example`. Použijte stejné `sheet_id` a servisní účet
 jako v původní aplikaci. Skutečné klíče jsou ignorované Gitem.
+
+Živá aplikace: https://chalupa-codex.streamlit.app/
 
 Bez servisního účtu aplikace používá vlastní SQLite v `work/`. Nečte databázi
 původní aplikace. SQLite na Streamlit Cloudu není trvalé úložiště.
@@ -58,6 +62,17 @@ Očekává existující hlavičky, další sloupce na konci povoluje:
 - `Rezervace`: Jméno | Příjmení | email | Datum - Start | Datum - Konec |
   Stav | ID | Vytvořeno | Cena celkem
 - `Cenotvorba`: Od | Do | Cena za noc | Popis | ID
+- `Úklid`: Jméno | E-mail
+
+Přiřazení úklidu se ukládá do sloupce `Úklid - e-mail` na konci
+listu `Rezervace`. Sloupec se vyhledává podle názvu, původních devět
+sloupců se neposouvá. Nový list a sloupec připravuje explicitní
+`storage.ensure_cleaning_storage()` při nasazení; vzniknou také při prvním
+potřebném zápisu. Pouhé otevření stránky strukturu tabulky nemění.
+Kontakty s totožným e-mailem (bez ohledu na velikost písmen) se nepřidávají
+opakovaně. Název kontaktu může být jméno člověka i název firmy.
+Úklid je navázán na den odjezdu, výběr lze změnit nebo vymazat volbou
+Nepřiřazeno. E-mailové nabídky a přihlašování na úklid zatím nejsou součástí.
 
 Nové rezervace používají stav `Čeká na potvrzení` a 12znakové UUID ID.
 Čekající i potvrzené rezervace blokují termín. Navazující pobyty se nepřekrývají.

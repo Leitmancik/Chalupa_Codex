@@ -31,11 +31,11 @@ def safe_cell(value):
 
 
 def export_frame(rows):
-    columns = ['Jméno', 'Příjmení', 'E-mail', 'Příjezd', 'Odjezd', 'Nocí', 'Stav', 'Cena celkem', 'ID']
+    columns = ['Jméno', 'Příjmení', 'E-mail', 'Příjezd', 'Odjezd', 'Nocí', 'Stav', 'Cena celkem', 'ID', 'Úklid - e-mail']
     return pd.DataFrame([
         [safe_cell(r['first_name']), safe_cell(r['last_name']), safe_cell(r['email']),
          r['date_from'].isoformat(), r['date_to'].isoformat(),
-         (r['date_to']-r['date_from']).days, STATUS[r['status']], r['price'], safe_cell(r['id'])]
+         (r['date_to']-r['date_from']).days, STATUS[r['status']], r['price'], safe_cell(r['id']), safe_cell(r.get('cleaner_email', ''))]
         for r in rows], columns=columns)
 
 
@@ -51,6 +51,11 @@ def render():
     except StorageError as error:
         st.error(str(error))
         return
+    try:
+        cleaners = storage.load_cleaners()
+    except StorageError as error:
+        st.warning('Úklidový tým se nepodařilo načíst. ' + str(error))
+        cleaners = None
     confirmed = [r for r in rows if r['status'] == 'confirmed']
     pending = sum(r['status'] == 'pending' for r in rows)
     missing = sum(r['price'] is None for r in confirmed)
@@ -90,6 +95,8 @@ def render():
                         remove(r)
                 except StorageError as error:
                     st.error(str(error))
+            if cleaners is not None:
+                cleaning_assignment(r, cleaners)
     if filtered:
         frame = export_frame(filtered)
         with st.expander('Exportovat zobrazené rezervace'):
@@ -110,3 +117,45 @@ def render():
             a.download_button('Stáhnout Excel', output.getvalue(), 'rezervace.xlsx',
                               mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', width='stretch')
             b.download_button('Stáhnout CSV', csv, 'rezervace.csv', mime='text/csv', width='stretch')
+
+
+def cleaning_assignment(reservation, cleaners):
+    assigned = reservation.get('cleaner_email', '')
+    contacts = {p['email']: p['name'] for p in cleaners if p['email']}
+    label = contacts.get(assigned, assigned) if assigned else 'Nepřiřazeno'
+    with st.expander(
+        f'Úklid · {date_label(reservation["date_to"])} · {label}'
+    ):
+        st.caption('Úklid po odjezdu hostů v 11:00. Přiřazení neposílá e-mail.')
+        if not reservation['id']:
+            st.info('Pro přiřazení úklidu nejprve doplňte ID rezervace v tabulce.')
+            return
+        options = [''] + list(contacts)
+        if assigned and assigned not in contacts:
+            options.append(assigned)
+            st.warning('Přiřazený kontakt už není v seznamu úklidového týmu.')
+        if not contacts:
+            st.info('Nejdříve přidejte člověka nebo firmu na záložce Úklid.')
+        key = reservation['id'] + '_' + assigned
+        with st.form('assign_cleaner_' + key):
+            choice = st.selectbox(
+                'Kdo zajistí úklid?', options,
+                index=options.index(assigned),
+                format_func=lambda email: (
+                    f'{contacts[email]} · {email}' if email in contacts
+                    else email or 'Nepřiřazeno'
+                ),
+                key='cleaner_choice_' + key,
+            )
+            submitted = st.form_submit_button(
+                'Uložit přiřazení', width='stretch',
+                disabled=not contacts and not assigned,
+            )
+        if submitted:
+            try:
+                storage.assign_cleaner(reservation['id'], choice)
+            except StorageError as error:
+                st.error(str(error))
+            else:
+                ui.flash('Úklid byl přiřazen.' if choice else 'Přiřazení úklidu bylo zrušeno.')
+                st.rerun()
