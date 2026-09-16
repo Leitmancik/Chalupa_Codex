@@ -7,7 +7,8 @@ from zoneinfo import ZoneInfo
 RES_HEADER = ['Jméno', 'Příjmení', 'email', 'Datum - Start', 'Datum - Konec',
               'Stav', 'ID', 'Vytvořeno', 'Cena celkem']
 PRICE_HEADER = ['Od', 'Do', 'Cena za noc', 'Popis', 'ID']
-STATUS = {'pending': 'Čeká na potvrzení', 'confirmed': 'Potvrzeno'}
+STATUS = {'pending': 'Čeká na potvrzení',
+          'confirmed': 'Potvrzeno - čeká na zaplacení', 'paid': 'Zaplaceno'}
 MONTHS = ['leden', 'únor', 'březen', 'duben', 'květen', 'červen', 'červenec',
           'srpen', 'září', 'říjen', 'listopad', 'prosinec']
 
@@ -119,3 +120,30 @@ def nights_label(count):
 
 def date_label(day):
     return day.strftime('%d. %m. %Y') if day else '—'
+
+
+def created_label(value):
+    """Zobrazí uloženou přesnost; čas s pásmem převede do Prahy."""
+    text = str(value or '').strip()
+    if not text:
+        return 'Čas vytvoření není uložen'
+    # Starším záznamům bez sekund nevymýšlíme přesný okamžik.
+    has_seconds = bool(re.search(r'\d{1,2}:\d{2}:\d{2}', text))
+    try:
+        stamp = datetime.fromisoformat(text.replace('Z', '+00:00'))
+    except ValueError:
+        stamp = None
+        for fmt in ('%d.%m.%Y %H:%M:%S', '%d. %m. %Y %H:%M:%S',
+                    '%d.%m.%Y %H:%M', '%d. %m. %Y %H:%M'):
+            try:
+                stamp = datetime.strptime(text, fmt)
+                break
+            except ValueError:
+                pass
+    if stamp is None:
+        return text
+    if stamp.tzinfo is not None:
+        stamp = stamp.astimezone(ZoneInfo('Europe/Prague'))
+    if not has_seconds:
+        return text + ' (sekundy nejsou uložené)'
+    return stamp.strftime('%d. %m. %Y · %H:%M:%S')

@@ -1,6 +1,7 @@
 """Společná Google tabulka; oddělené SQLite pro vývoj bez připojení."""
 from contextlib import contextmanager
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 import json
 import os
@@ -87,7 +88,8 @@ def _decode_res(rows, cleaner_index=None):
         ids.add(rid)
         result.append(dict(first_name=v[0], last_name=v[1], email=v[2],
                            date_from=start, date_to=end,
-                           status='confirmed' if v[5] == STATUS['confirmed'] else 'pending',
+                           status=({'Potvrzeno': 'confirmed', **{label: key for key, label in STATUS.items()}}
+                                   .get(str(v[5]).strip(), 'pending')),
                            id=rid, created_at=v[7], price=parse_money(v[8]),
                            cleaner_email=(str(v[cleaner_index]).strip()
                                if cleaner_index is not None and len(v) > cleaner_index
@@ -213,7 +215,7 @@ def add_reservation(first, last, email, start, end, expected_price, request_id):
 def _reservation_values(first, last, email, start, end, price, rid):
     return [first.strip(), last.strip(), email.strip(), start.isoformat(),
             end.isoformat(), STATUS['pending'], rid,
-            datetime.now().astimezone().isoformat(timespec='seconds'),
+            datetime.now(ZoneInfo('Europe/Prague')).isoformat(timespec='seconds'),
             '' if price is None else price]
 
 

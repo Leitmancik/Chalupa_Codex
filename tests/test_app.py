@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 os.environ['CHALUPA_DEMO'] = '1'
-from domain import conflict, half_states, quote, today, parse_money, StorageError, validate_reservation
+from domain import conflict, half_states, quote, today, parse_money, StorageError, validate_reservation, created_label
 import storage
 
 class DomainTests(unittest.TestCase):
@@ -16,6 +16,24 @@ class DomainTests(unittest.TestCase):
         self.assertIsNotNone(conflict(date(2030, 1, 4), date(2030, 1, 7), [r]))
         self.assertEqual(half_states(date(2030, 1, 2), [r]), ('free', 'confirmed'))
         self.assertEqual(half_states(date(2030, 1, 5), [r]), ('confirmed', 'free'))
+
+    def test_creation_time_precision_and_timezone(self):
+        self.assertEqual(created_label('2030-07-02T12:34:56+00:00'),
+                         '02. 07. 2030 · 14:34:56')
+        self.assertEqual(created_label('2030-01-02T12:34:56+00:00'),
+                         '02. 01. 2030 · 13:34:56')
+        self.assertIn('sekundy nejsou uložené', created_label('2030-01-02 12:34'))
+        self.assertEqual(created_label(''), 'Čas vytvoření není uložen')
+
+    def test_legacy_and_new_statuses(self):
+        for label, expected in [('Potvrzeno', 'confirmed'),
+                                ('Potvrzeno - čeká na zaplacení', 'confirmed'),
+                                ('Zaplaceno', 'paid'), ('Čeká na potvrzení', 'pending')]:
+            row = ['Test', 'Host', 'test@example.com', '2030-01-02',
+                   '2030-01-04', label, 'id', '2030-01-01T12:34:56+01:00', 3000]
+            reservation = storage._decode_res([row])[0]
+            self.assertEqual(reservation['status'], expected)
+            self.assertIsNotNone(conflict(date(2030, 1, 3), date(2030, 1, 5), [reservation]))
 
     def test_seasons(self):
         p = [dict(date_from=None, date_to=None, price=100),
@@ -114,9 +132,26 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(storage.load_reservations(True)[0]['price'], 4000)
         admin = AppTest.from_string('import page_reservations\npage_reservations.render()', default_timeout=30).run()
         self.assertFalse(admin.exception)
-        next(b for b in admin.button if b.label == 'Potvrdit').click().run()
+        next(s for s in admin.selectbox if s.label == 'Stav rezervace').select('confirmed').run()
         self.assertFalse(admin.exception)
         self.assertEqual(storage.load_reservations(True)[0]['status'], 'confirmed')
+        original = storage.load_reservations(True)[0]
+        for state in ('paid', 'pending', 'confirmed', 'paid'):
+            next(s for s in admin.selectbox if s.label == 'Stav rezervace').select(state).run()
+            self.assertFalse(admin.exception)
+            current = storage.load_reservations(True)[0]
+            self.assertEqual(current['status'], state)
+            self.assertEqual(current['created_at'], original['created_at'])
+            self.assertEqual(current['price'], original['price'])
+        next(s for s in admin.selectbox if s.label == 'Stav').select('Zaplaceno').run()
+        self.assertFalse(admin.exception)
+        self.assertEqual(len([s for s in admin.selectbox if s.label == 'Stav rezervace']), 1)
+        calendar = AppTest.from_file(str(Path(__file__).resolve().parents[1] / 'streamlit_app.py'), default_timeout=30).run()
+        self.assertFalse(calendar.exception)
+        from page_reservations import export_frame
+        exported = export_frame([current])
+        self.assertEqual(exported.iloc[0]['Stav'], 'Zaplaceno')
+        self.assertEqual(exported.iloc[0]['Vytvořeno'], original['created_at'])
         prices = AppTest.from_string('import page_pricing\npage_pricing.render()', default_timeout=30).run()
         self.assertFalse(prices.exception)
 

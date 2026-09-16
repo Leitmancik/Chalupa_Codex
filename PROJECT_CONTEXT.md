@@ -77,3 +77,14 @@ Git push do origin/main aktualizuje stávající Streamlit aplikaci. Před změn
 ## Aktuální předání
 Poslední požadavek je přesun kontextu na MacBook Pro. Funkce Úklid je dokončena; není potřeba ji implementovat znovu. Další produktový krok si má zvolit uživatel.
 Dostupné textové zprávy jsou v CONVERSATION_EXPORT.md. Nejde o úplný technický export vlákna; výstupy nástrojů, interní záznamy a tajné údaje nejsou zahrnuty. Hlasová část je doplněna odděleným souhrnem.
+
+## Aktualizace po předání: tři stavy a čas vytvoření
+Ve správě rezervací je ruční okamžitý výběr všech tří stavů: Čeká na potvrzení,
+Potvrzeno - čeká na zaplacení, Zaplaceno. Interní klíče pending, confirmed, paid.
+Staré Potvrzeno se načítá jako confirmed; všechny stavy blokují termín.
+Hodnota potvrzených pobytů zahrnuje confirmed i paid. Původní aplikace Claude
+nové názvy stavů zatím nezná; její úprava není součástí této změny.
+Čas vytvoření je viditelný na sekundy v Europe/Prague a zahrnutý v exportech.
+U chybějících starých sekund se zobrazuje upozornění. Automatické platby jsou
+odložené na později stejně jako e-maily. Tato aktualizace nahrazuje dřívější
+popis dvou stavů; aktuální implementace je v repozitáři.

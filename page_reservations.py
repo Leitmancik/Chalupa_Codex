@@ -4,7 +4,7 @@ from io import BytesIO
 import pandas as pd
 import streamlit as st
 import storage
-from domain import STATUS, StorageError, date_label, money, today, nights_label
+from domain import STATUS, StorageError, date_label, money, today, nights_label, created_label
 import ui
 
 
@@ -31,19 +31,32 @@ def safe_cell(value):
 
 
 def export_frame(rows):
-    columns = ['Jméno', 'Příjmení', 'E-mail', 'Příjezd', 'Odjezd', 'Nocí', 'Stav', 'Cena celkem', 'ID', 'Úklid - e-mail']
+    columns = ['Jméno', 'Příjmení', 'E-mail', 'Příjezd', 'Odjezd', 'Nocí', 'Stav', 'Cena celkem', 'ID', 'Úklid - e-mail', 'Vytvořeno']
     return pd.DataFrame([
         [safe_cell(r['first_name']), safe_cell(r['last_name']), safe_cell(r['email']),
          r['date_from'].isoformat(), r['date_to'].isoformat(),
-         (r['date_to']-r['date_from']).days, STATUS[r['status']], r['price'], safe_cell(r['id']), safe_cell(r.get('cleaner_email', ''))]
+         (r['date_to']-r['date_from']).days, STATUS[r['status']], r['price'], safe_cell(r['id']), safe_cell(r.get('cleaner_email', '')), safe_cell(r.get('created_at', ''))]
         for r in rows], columns=columns)
+
+
+def change_status(rid, key):
+    try:
+        selected = st.session_state[key]
+        storage.set_status(rid, selected)
+    except StorageError as error:
+        st.session_state['_status_error'] = str(error)
+        st.session_state.pop(key, None)
+    else:
+        ui.flash('Stav rezervace byl změněn na: ' + STATUS[selected])
 
 
 def render():
     ui.heading('PRO MAJITELE / REZERVACE', 'Všechny pobyty. Na jednom místě.',
-               'Potvrďte nové žádosti a mějte přehled o tom, kdo přijede příště.')
+               'Spravujte potvrzení a zaplacení pobytů. Stav změníte výběrem u rezervace.')
     ui.admin_note()
     ui.show_flash()
+    if error := st.session_state.pop('_status_error', None):
+        st.error(error)
     if st.button('Obnovit data', icon=':material/refresh:', type='tertiary'):
         storage.refresh()
     try:
@@ -56,7 +69,7 @@ def render():
     except StorageError as error:
         st.warning('Úklidový tým se nepodařilo načíst. ' + str(error))
         cleaners = None
-    confirmed = [r for r in rows if r['status'] == 'confirmed']
+    confirmed = [r for r in rows if r['status'] in ('confirmed', 'paid')]
     pending = sum(r['status'] == 'pending' for r in rows)
     missing = sum(r['price'] is None for r in confirmed)
     revenue = sum(r['price'] or 0 for r in confirmed)
@@ -67,30 +80,36 @@ def render():
             f'<div class="metric-card"><small>Hodnota potvrzených pobytů</small><strong>{money(revenue)}</strong><span>všechny potvrzené · {missing} bez uložené ceny</span></div></div>')
     filters = st.columns([2, 1, 1])
     search = filters[0].text_input('Hledat hosta', placeholder='Jméno, e-mail nebo kód rezervace')
-    status = filters[1].selectbox('Stav', ['Všechny stavy', 'Čeká na potvrzení', 'Potvrzeno'])
+    status = filters[1].selectbox('Stav', ['Všechny stavy', *STATUS.values()])
     period = filters[2].selectbox('Období', ['Nadcházející a probíhající', 'Všechny pobyty', 'Minulé pobyty'])
     filtered = [r for r in rows if (
         (not search or search.casefold() in f"{r['first_name']} {r['last_name']} {r['email']} {r['id']}".casefold())
         and (status == 'Všechny stavy' or STATUS[r['status']] == status)
         and (period == 'Všechny pobyty' or (r['date_to'] > today()) == (period == 'Nadcházející a probíhající')))]
+    st.caption('Časy vytvoření jsou uvedené v časovém pásmu Europe/Prague. Stav platby zatím měníte ručně.')
     st.caption(f'Zobrazeno {len(filtered)} z {len(rows)} rezervací · Souhrny nahoře zahrnují všechny záznamy.')
     if not filtered:
         st.info('Žádné rezervace pro tento výběr. Zkuste upravit filtry.')
     for i, r in enumerate(filtered):
         with st.container(border=True):
-            cols = st.columns([2, 2, 1.2, 1.5])
+            cols = st.columns([2, 2, 2])
             cols[0].html(f'<p class="res-title">{escape(r["first_name"])} {escape(r["last_name"])}</p>'
                          f'<p class="res-detail">{escape(r["email"])}<br>#{escape(r["id"] or "bez ID")}</p>')
             cols[1].html(f'<p class="res-title">{date_label(r["date_from"])} → {date_label(r["date_to"])}</p>'
-                         f'<p class="res-detail">{nights_label((r["date_to"]-r["date_from"]).days)} · {money(r["price"])}</p>')
-            cols[2].html(ui.badge(STATUS[r['status']], 'amber' if r['status'] == 'pending' else 'green'))
-            with cols[3]:
+                         f'<p class="res-detail">{nights_label((r["date_to"]-r["date_from"]).days)} · {money(r["price"])}</p>'
+                         f'<p class="res-detail">Vytvořeno: {escape(created_label(r.get("created_at")))}</p>')
+            cols[2].html(ui.badge(STATUS[r['status']], 'green' if r['status'] == 'paid' else 'amber'))
+            with cols[2]:
                 try:
-                    if r['status'] == 'pending' and st.button('Potvrdit', key=f'confirm_{i}',
-                                                            disabled=not r['id'], width='stretch'):
-                        storage.set_status(r['id'], 'confirmed')
-                        ui.flash('Rezervace byla potvrzena.')
-                        st.rerun()
+                    status_key = f"status_{r['id'] or i}_{r['status']}"
+                    st.selectbox(
+                        'Stav rezervace', list(STATUS),
+                        index=list(STATUS).index(r['status']),
+                        format_func=STATUS.get,
+                        key=status_key,
+                        on_change=change_status, args=(r['id'], status_key),
+                        disabled=not r['id'],
+                    )
                     if st.button('Smazat', key=f'delete_{i}', type='tertiary', disabled=not r['id'], width='stretch'):
                         remove(r)
                 except StorageError as error:

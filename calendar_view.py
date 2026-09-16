@@ -6,8 +6,8 @@ import streamlit as st
 from domain import (MONTHS, half_states, shift_month, today, conflict,
                     date_label, price_for_night, money)
 
-COLORS = {'free': '#f7f8f1', 'confirmed': '#d4dfcc', 'pending': '#f4e4c4'}
-LABELS = {'free': 'volno', 'confirmed': 'obsazeno', 'pending': 'čeká na potvrzení'}
+COLORS = {'free': '#f7f8f1', 'confirmed': '#d4dfcc', 'paid': '#d4dfcc', 'pending': '#f4e4c4'}
+LABELS = {'free': 'volno', 'confirmed': 'obsazeno', 'paid': 'obsazeno', 'pending': 'čeká na potvrzení'}
 
 
 def choose(day):

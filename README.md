@@ -123,3 +123,14 @@ nebyly provedeny.
 - `tests/test_app.py`: automatické ověření.
 
 Použité Streamlit API: [oficiální dokumentace](https://docs.streamlit.io/develop/api-reference).
+
+## Ruční stavy a čas vytvoření (16. 9. 2026)
+Ve správě lze okamžitě přepínat mezi Čeká na potvrzení,
+Potvrzeno - čeká na zaplacení a Zaplaceno, včetně změn zpět.
+Všechny stavy blokují termín. Hodnota potvrzených pobytů zahrnuje i zaplacené.
+Původní hodnota Potvrzeno se čte jako potvrzená rezervace čekající na zaplacení.
+Nové hodnoty se zapisují do stávajícího sloupce Stav. Původní aplikace Claude
+je zatím nerozpoznává a může je zobrazovat jako čekající; potřebuje vlastní úpravu.
+Čas vytvoření se zobrazuje na sekundy v Europe/Prague a je také v exportu.
+U historických záznamů bez sekund se chybějící přesnost nevymýšlí.
+Automatické ověření plateb ani e-maily nejsou implementované.

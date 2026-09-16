@@ -42,7 +42,7 @@ h2{font-size:1.55rem!important}h3{font-size:1.15rem!important;letter-spacing:-.0
 .price-line{display:flex;justify-content:space-between;font-size:14px;padding:8px 0;color:#737e6c}.price-total{border-top:1px solid var(--line);margin-top:8px;padding-top:15px;font-weight:700;font-size:19px;color:var(--forest)}
 .booking-empty{padding:22px 8px;text-align:center;border:1px dashed #dbe2d2;border-radius:13px;font-size:13px;color:#8a9480;line-height:1.8}
 .info-strip{display:flex;gap:25px;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:10px;padding-top:17px;color:#7b8674;font-size:12px}.info-strip b{color:#455b45;font-weight:600}
-.badge{display:inline-block;border-radius:30px;padding:5px 10px;font-size:11px;background:#eaf0e3;color:#426647;white-space:nowrap}.badge.amber{background:#fcf0d8;color:#896426}
+.badge{display:inline-block;border-radius:30px;padding:5px 10px;font-size:11px;background:#eaf0e3;color:#426647;white-space:normal}.badge.amber{background:#fcf0d8;color:#896426}
 .metric-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin:8px 0 20px}.metric-card{padding:23px;background:white;border:1px solid var(--line);border-radius:17px}.metric-card small{font-size:12px;color:#7d8975}.metric-card strong{display:block;font-family:'Manrope',sans-serif;font-size:28px;color:var(--forest);letter-spacing:-.045em;margin:8px 0 0}.metric-card span{font-size:11px;color:#919885}
 .res-title{font-weight:700;font-size:15px;margin:0 0 6px}.res-detail{font-size:12px;color:#7c8774;margin:0;line-height:1.7}
 .footer{font-size:11px;color:#939c8c;text-align:center;border-top:1px solid var(--line);padding-top:22px;margin-top:35px}
