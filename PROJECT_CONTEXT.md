@@ -94,3 +94,17 @@ Kalendář používá oranžovou pro čekající rezervace a stejnou červenou p
 potvrzené čekající na zaplacení i zaplacené. Legenda uvádí všechny tři stavy.
 Nadpis rezervačního formuláře zní „Naplánujte si dovolenou“.
 Filtr Stav ve správě rezervací je vícenásobný; bez výběru se zobrazí všechny stavy.
+
+## Rozpracovaná integrace Resend (16. 9. 2026)
+Uživatel schválil Resend, založil účet přes GitHub a vybral odesílatele
+uklidvernirovice@libertionova.com; doména je u Active24. Nechce platit za novou
+schránku. Schválil nabídky po změně na Zaplaceno všem přihlášeným úklidovým týmům,
+odhlášení přes e-mail se stavem Odhlášeno, závazné přihlášení prvního týmu,
+úklid v den odjezdu 11–15 a jednotnou odměnu 2500 Kč. Obsah a checklist jsou
+v integrations/cleaning.gs. Dosavadní odklad e-mailů tímto zadáním skončil.
+
+Připravený kód cleaning_mail.py, page_cleaning_response.py a Apps Script
+integrations/cleaning.gs; detaily aktivace v integrations/README.md. Integrace
+je ve výchozím stavu vypnutá; vyžaduje Resend ověření, klíč, nasazení samostatného
+Apps Script projektu a Streamlit konfiguraci. Sloupce a listy teprve vytvoří
+setup(). Nezaměňovat připravený kód s aktivní produkční rozesílkou.

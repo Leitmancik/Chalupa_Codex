@@ -15,6 +15,9 @@ def render():
     )
     ui.admin_note()
     ui.show_flash()
+    import cleaning_mail
+    if not cleaning_mail.configured():
+        st.info('Rozesílka čeká na nastavení Resendu a ověření domény. E-maily se zatím neposílají.')
     if st.session_state.pop('_reset_cleaner_form', False):
         st.session_state.pop('cleaner_name', None)
         st.session_state.pop('cleaner_email', None)
@@ -43,8 +46,8 @@ def render():
                 'Přidat do týmu', type='primary', width='stretch',
             )
         st.caption(
-            'Na tyto adresy bude později možné posílat nabídky '
-            'termínů úklidu. E-maily se zatím neodesílají.'
+            'Nabídky dostávají pouze přihlášené kontakty po aktivaci rozesílky. '
+            'Odhlášení z nabídek nemaže již přijaté úklidy.'
         )
         if submitted:
             try:
@@ -78,3 +81,4 @@ def render():
                     + escape(person['email'] or 'E-mail není vyplněný')
                     + '</p>'
                 )
+                st.caption('E-mailing: ' + person.get('mail_status', 'Přihlášeno'))

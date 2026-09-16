@@ -47,7 +47,11 @@ def change_status(rid, key):
         st.session_state['_status_error'] = str(error)
         st.session_state.pop(key, None)
     else:
-        ui.flash('Stav rezervace byl změněn na: ' + STATUS[selected])
+        import cleaning_mail
+        suffix = (' · Nabídka úklidu se odešle přihlášeným týmům, pokud již nebyla vytvořena a úklid není přiřazen.'
+                  if selected == 'paid' and cleaning_mail.configured() else
+                  ' · Rozesílka úklidu zatím není aktivovaná.' if selected == 'paid' else '')
+        ui.flash('Stav rezervace byl změněn na: ' + STATUS[selected] + suffix)
 
 
 def render():

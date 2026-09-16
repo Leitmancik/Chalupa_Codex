@@ -262,10 +262,16 @@ def _mutate(kind, rid, values=None, status=None, delete=False):
 def set_status(rid, status):
     if status not in STATUS:
         raise StorageError('Neplatný stav rezervace.')
+    import cleaning_mail
+    if cleaning_mail.configured():
+        return cleaning_mail.call('status', id=rid, status=STATUS[status])
     _mutate('res', rid, status=status)
 
 
 def delete_reservation(rid):
+    import cleaning_mail
+    if cleaning_mail.configured():
+        return cleaning_mail.call('delete', id=rid)
     _mutate('res', rid, delete=True)
 
 
@@ -296,7 +302,7 @@ CLEANING_SHEET = 'Úklid'
 CLEANING_HEADER = ['Jméno', 'E-mail']
 
 
-def _cleaning_sheet(create=False):
+def _cleaning_sheet(create=False, include_header=False):
     document = _document()
     try:
         sheet = document.worksheet(CLEANING_SHEET)
@@ -324,7 +330,7 @@ def _cleaning_sheet(create=False):
             'List Úklid nemá očekávané sloupce Jméno a E-mail. '
             'Existující obsah nebyl změněn.'
         )
-    return sheet, rows[1:]
+    return (sheet, rows[1:], rows[0]) if include_header else (sheet, rows[1:])
 
 
 def ensure_cleaning_sheet():
@@ -334,14 +340,17 @@ def ensure_cleaning_sheet():
             _cleaning_sheet(create=True)
 
 
-def _decode_cleaners(rows):
+def _decode_cleaners(rows, status_index=None):
     people = []
     for row in rows:
         if not any(str(value).strip() for value in row):
             continue
         values = list(row) + [''] * max(0, 2 - len(row))
-        people.append({'name': str(values[0]).strip(),
-                       'email': str(values[1]).strip()})
+        person = {'name': str(values[0]).strip(), 'email': str(values[1]).strip()}
+        if status_index is not None:
+            person['mail_status'] = (str(values[status_index]).strip()
+                                     if len(values) > status_index else '') or 'Přihlášeno'
+        people.append(person)
     return sorted(people, key=lambda person: person['name'].casefold())
 
 
@@ -351,10 +360,14 @@ def load_cleaners(force=False):
         return cached[1]
     with _errors():
         if connected():
-            _, rows = _cleaning_sheet()
+            result = _cleaning_sheet(include_header=True)
+            _, rows = result[:2]
+            header = result[2] if len(result) > 2 else []
+            status_index = header.index('E-mailing') if 'E-mailing' in header else None
         else:
             rows = _local_rows('cleaners')
-        people = _decode_cleaners(rows)
+            status_index = None
+        people = _decode_cleaners(rows, status_index)
     st.session_state['_data_cleaners'] = (time.monotonic(), people)
     return people
 
@@ -435,6 +448,9 @@ def assign_cleaner(reservation_id, email):
     if not reservation_id:
         raise StorageError('Rezervace nemá ID. Doplňte jej nejprve v tabulce.')
     email = (email or '').strip()
+    import cleaning_mail
+    if cleaning_mail.configured():
+        return cleaning_mail.call('assign', id=reservation_id, email=email)
     with _lock(), _errors():
         if email:
             person = next((p for p in load_cleaners(force=True)

@@ -6,10 +6,14 @@ import page_calendar
 import page_reservations
 import page_pricing
 import page_cleaning
+import page_cleaning_response
 
 st.set_page_config(page_title='Chalupa · Rezervace', page_icon='🌿', layout='wide',
                    initial_sidebar_state='collapsed')
 ui.style()
+if 'cleaning_token' in st.query_params:
+    page_cleaning_response.render()
+    st.stop()
 if st.session_state.pop('_reset_booking', False):
     for key in ('arrival', 'departure', '_request'):
         st.session_state.pop(key, None)
