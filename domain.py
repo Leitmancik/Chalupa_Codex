@@ -133,7 +133,8 @@ def created_label(value):
         stamp = datetime.fromisoformat(text.replace('Z', '+00:00'))
     except ValueError:
         stamp = None
-        for fmt in ('%d.%m.%Y %H:%M:%S', '%d. %m. %Y %H:%M:%S',
+        for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M',
+                    '%d.%m.%Y %H:%M:%S', '%d. %m. %Y %H:%M:%S',
                     '%d.%m.%Y %H:%M', '%d. %m. %Y %H:%M'):
             try:
                 stamp = datetime.strptime(text, fmt)

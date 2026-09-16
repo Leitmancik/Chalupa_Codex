@@ -24,6 +24,7 @@ class DomainTests(unittest.TestCase):
                          '02. 01. 2030 · 13:34:56')
         self.assertIn('sekundy nejsou uložené', created_label('2030-01-02 12:34'))
         self.assertEqual(created_label(''), 'Čas vytvoření není uložen')
+        self.assertEqual(created_label('2026-09-15 5:12:34'), '15. 09. 2026 · 05:12:34')
 
     def test_legacy_and_new_statuses(self):
         for label, expected in [('Potvrzeno', 'confirmed'),
